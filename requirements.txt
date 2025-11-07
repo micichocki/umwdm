@@ -83,6 +83,7 @@ nvidia-nvshmem-cu12==3.3.20
 nvidia-nvtx-cu12==12.8.90
 packaging==25.0
 pandas==2.3.3
+pandas-stubs==2.3.2.250926
 pandocfilters==1.5.1
 parso==0.8.5
 pexpect==4.9.0
