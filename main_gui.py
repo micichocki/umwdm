@@ -62,6 +62,9 @@ class ChestMNISTApp:
         self.stop_btn = ttk.Button(left_panel, text="Stop Training", command=self.stop_training, state=tk.DISABLED)
         self.stop_btn.pack(pady=2, fill=tk.X)
 
+        self.load_model_btn = ttk.Button(left_panel, text="Load Model", command=self.load_model)
+        self.load_model_btn.pack(pady=2, fill=tk.X)
+
         ttk.Separator(left_panel, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
 
         ttk.Label(left_panel, text="Inference", font=("Helvetica", 12, "bold")).pack(pady=5)
@@ -94,6 +97,22 @@ class ChestMNISTApp:
         self.log_text.insert(tk.END, message + "\n")
         self.log_text.see(tk.END)
         self.log_text.config(state=tk.DISABLED)
+
+    def load_model(self):
+        file_path = filedialog.askopenfilename(
+            filetypes=[("PyTorch Model", "*.pth"), ("All Files", "*.*")]
+        )
+        if file_path:
+            try:
+                self.log(f"Loading model from {file_path}...")
+                self.model = CNN(num_classes=14).to(self.device)
+                self.model.load_state_dict(torch.load(file_path, map_location=self.device))
+                self.model.eval()
+                self.log("Model loaded successfully!")
+                self.predict_btn.config(state=tk.NORMAL)
+            except Exception as e:
+                self.log(f"Error loading model: {str(e)}")
+                messagebox.showerror("Error", f"Failed to load model:\n{str(e)}")
 
     def start_training(self):
         try:
