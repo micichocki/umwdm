@@ -1,10 +1,10 @@
 import torch
 from PIL import Image
-from scripts.data_loader import get_transform, CLASS_NAMES
+from scripts.data_loader import get_val_test_transform, CLASS_NAMES
 
 def predict_image(model, image_path, device):
     model.eval()
-    transform = get_transform()
+    transform = get_val_test_transform()
     
     try:
         image = Image.open(image_path).convert('L')

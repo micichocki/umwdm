@@ -98,6 +98,7 @@ class ChestMNISTApp:
         self.log_text.see(tk.END)
         self.log_text.config(state=tk.DISABLED)
 
+
     def load_model(self):
         file_path = filedialog.askopenfilename(
             filetypes=[("PyTorch Model", "*.pth"), ("All Files", "*.*")]
@@ -105,7 +106,7 @@ class ChestMNISTApp:
         if file_path:
             try:
                 self.log(f"Loading model from {file_path}...")
-                self.model = CNN(num_classes=14).to(self.device)
+                self.model = CNN().to(self.device)
                 self.model.load_state_dict(torch.load(file_path, map_location=self.device))
                 self.model.eval()
                 self.log("Model loaded successfully!")
@@ -148,7 +149,7 @@ class ChestMNISTApp:
             train_loader, val_loader, _ = get_dataloaders(batch_size=batch_size)
             
             self.log("Initializing model...")
-            self.model = CNN(num_classes=14).to(self.device)
+            self.model = CNN().to(self.device)
             
             self.log(f"Starting training for {epochs} epochs with {optimizer_name} and {criterion_name}...")
             self.model, self.history = train_model(
