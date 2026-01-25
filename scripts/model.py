@@ -2,35 +2,41 @@ import torch
 import torch.nn as nn
 
 class ConvBlock(nn.Module):
-    def __init__(self, in_ch, out_ch, kernel_size):    
+    def __init__(self, in_ch, out_ch, kernel_size, padding, stride=1):    
         super().__init__()
-        
-        padding = kernel_size // 2
 
         self.block = nn.Sequential(
-            nn.Conv2d(in_ch, out_ch, kernel_size, padding=padding),
+            nn.Conv2d(in_ch, out_ch, kernel_size, padding=padding, stride=stride),
             nn.BatchNorm2d(out_ch),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=(2, 2))
+            nn.GELU()
         )
 
     def forward(self, x):
         return self.block(x)
 
-class CNN(nn.Module):                                             
-    def __init__(self, in_channels=1, num_labels=14):
+class CNN(nn.Module):                                   
+    def __init__(self, in_channels=3, num_labels=14):
         super().__init__()
 
+        act_name='GELU'
+        base_channels=64
+        dropout_rate=0.2      
+        
         self.features = nn.Sequential(
-            ConvBlock(in_channels, 32, kernel_size=7),   
-            ConvBlock(32, 64, kernel_size=5),             
-            ConvBlock(64, 128, kernel_size=5),            
-            ConvBlock(128, 256, kernel_size=3),           
-            ConvBlock(256, 512, kernel_size=3),           
+            ConvBlock(in_channels, base_channels, kernel_size=3, padding=1, stride=1),   
+            ConvBlock(base_channels, base_channels*2, kernel_size=3, padding=1, stride=2),            
+            ConvBlock(base_channels*2, base_channels*4, kernel_size=3, padding=1, stride=2),           
+            ConvBlock(base_channels*4, base_channels*8, kernel_size=3, padding=1, stride=2),          
+            ConvBlock(base_channels*8, base_channels*16, kernel_size=3, padding=1, stride=2),
+            ConvBlock(base_channels*16, base_channels*16, kernel_size=3, padding=1, stride=2),          
         )
 
         self.gap = nn.AdaptiveAvgPool2d(1)
-        self.classifier = nn.Linear(512, num_labels)
+        
+        self.classifier = nn.Sequential(
+            nn.Dropout(dropout_rate),
+            nn.Linear(base_channels*16, num_labels)
+        )    
 
     def forward(self, x):
         x = self.features(x)

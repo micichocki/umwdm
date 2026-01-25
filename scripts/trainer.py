@@ -4,6 +4,7 @@ import torch.optim as optim
 import numpy as np
 from sklearn.metrics import roc_auc_score, accuracy_score
 import os
+import time
 
 def get_auc(labels, preds):
     auc = 0
@@ -46,6 +47,7 @@ def train_step(model, dataloader, optimizer, criterion, device):
         total_loss.append(loss.item())
 
     epoch_loss = sum(total_loss) / len(total_loss)
+
     return epoch_loss
 
 @torch.no_grad()
@@ -59,7 +61,7 @@ def validate(model, dataloader, criterion, device):
         inputs = inputs.to(device)
         labels = labels.float().to(device)
         
-        outputs = model(inputs)
+        outputs = model(inputs.to(device))
 
         loss = criterion(outputs, labels)
 
@@ -71,16 +73,13 @@ def validate(model, dataloader, criterion, device):
 
     val_loss = np.mean(total_loss)
 
-    if len(all_labels) > 0:
-        all_labels = np.vstack(all_labels)
-        all_preds = np.vstack(all_preds)
-        auc = get_auc(all_labels, all_preds)
-        acc = get_acc(all_labels, all_preds)
-    else:
-        auc = 0
-        acc = 0
+    all_labels = np.vstack(all_labels)
+    all_preds = np.vstack(all_preds)
 
-    return val_loss, auc, acc
+    auc = get_auc(all_labels, all_preds)
+    acc = get_acc(all_labels, all_preds)
+
+    return val_loss, auc, acc, all_preds
 
 def train_model(model, train_loader, val_loader, device, num_epochs=5, lr=0.001, log_callback=None, stop_event=None, optimizer_name="Adam", criterion_name="BCEWithLogitsLoss"):
     
@@ -104,6 +103,13 @@ def train_model(model, train_loader, val_loader, device, num_epochs=5, lr=0.001,
         if log_callback: log_callback(f"Warning: Unknown optimizer {optimizer_name}, using Adam")
         optimizer = optim.Adam(model.parameters(), lr=lr)
 
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, 
+        mode='min', 
+        factor=0.1, 
+        patience=5
+    )
+
     history = {'train_loss': [], 'val_loss': [], 'val_acc': [], 'val_auc': []}
 
     for epoch in range(num_epochs):
@@ -111,17 +117,31 @@ def train_model(model, train_loader, val_loader, device, num_epochs=5, lr=0.001,
             if log_callback: log_callback("Training stopped by user.")
             break
             
+        start_t = time.time()
+
         train_loss = train_step(model, train_loader, optimizer, criterion, device)
-        val_loss, val_auc, val_acc  = validate(model, val_loader, criterion, device)
+        val_loss, val_auc, val_acc, _  = validate(model, val_loader, criterion, device)
+
+        end_t = time.time()
+        duration = end_t - start_t
 
         history['train_loss'].append(train_loss)
         history['val_loss'].append(val_loss)
         history['val_acc'].append(val_acc)
         history['val_auc'].append(val_auc)
 
-        msg = (f"Epoch [{epoch+1}/{num_epochs}], " 
-               f"train loss: {train_loss:.4f}, "
-               f"val loss: {val_loss:.4f}, val acc: {val_acc:.4f}, val auc: {val_auc:.4f}")
+        scheduler.step(val_loss)
+
+        m, s = divmod(duration, 60)
+        width = len(str(num_epochs))
+
+        msg = (
+            f"Epoch [{epoch+1:>{width}}/{num_epochs}] | "
+            f"Learning Rate: {optimizer.param_groups[0]['lr']:.1e} | "
+            f"Time: {int(m)}m {int(s)}s | "      
+            f"Train loss: {train_loss:.4f} | "
+            f"Val loss: {val_loss:.4f} | Val ACC: {val_acc:.4f} | Val AUC: {val_auc:.4f}"
+        )
         
         if log_callback:
             log_callback(msg)
